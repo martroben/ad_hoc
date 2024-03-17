@@ -33,7 +33,7 @@ reader = csv.DictReader(response.iter_lines(decode_unicode=True))
 
 # Filter data
 filter_field = "Ametikoht"
-filter_regex_pattern = r"anal"  # developers: r"aren"  all: r""
+filter_regex_pattern = r"anal"  # alternatives: developers: r"aren"  all: r""
 filtered_records = [record for record in reader if re.search(filter_regex_pattern, record[filter_field], re.IGNORECASE)]
 
 # Extract and clean data
@@ -45,14 +45,14 @@ colour_field_map = {re.compile(key, re.IGNORECASE): value for key, value in colo
 colour_data_raw = [record[colour_field] or "not specified" for record in filtered_records]
 colour_data = [next(value for pattern, value in colour_field_map.items() if pattern.search(colour_data_point)) for colour_data_point in colour_data_raw]
 
-# Process colour data
+# Map colours to values with maximum scale stretch
 colour_scale_name = "RdBu"
 colour_scale = plotly.colors.PLOTLY_SCALES[colour_scale_name]
 existing_colours = [value for value in colour_field_eng_reference.values() if value in colour_data]
 colour_map_positions = {value: existing_colours.index(value) / (len(existing_colours) - 1) for value in existing_colours}
 colour_map = {key: colour_scale[int(value*(len(colour_scale)-1))][1] for key, value in colour_map_positions.items()}
 
-# Scatter plot
+# Main scatter plot
 scatter_plot = plotly.graph_objects.Scatter(
     x=x_data,
     y=y_data,
@@ -62,7 +62,8 @@ scatter_plot = plotly.graph_objects.Scatter(
     marker=dict(color=[colour_map[data_point] for data_point in colour_data]),
     showlegend=False)
 
-# Separate scatter traces for each category for the colour legend
+# Use separate scatter traces for each colour field category to get the colour legend
+# (plotly peculiarity)
 legend_traces = []
 for category, color in colour_map.items():
     trace = plotly.graph_objects.Scatter(
@@ -70,20 +71,21 @@ for category, color in colour_map.items():
         mode="markers",
         marker=dict(color=color),
         name=category)
-    
     legend_traces.append(trace)
 
-figure = plotly.graph_objects.Figure(data=[scatter_plot] + legend_traces)
-
-# Plot labels and legend
+# Drop a fraction of top values for better visual
 x_outliers = 0.015
-x_capped = sorted(x_data)[int(len(x_data) * (1 - x_outliers))]
+x_cap = sorted(x_data)[int(len(x_data) * (1 - x_outliers))]
+
+# Add plot labels and legend
+figure = plotly.graph_objects.Figure(data=[scatter_plot] + legend_traces)
 figure.update_layout(
     title=plot_title,
     xaxis=dict(
         title = x_axis_title,
-        range = [min(x_data)-100, x_capped + 100]),
+        range = [min(x_data)-100, x_cap + 100]),
     yaxis_title=y_axis_title)
 
+# Show / save
 figure.show()
 # figure.write_image(f"{x_axis_field.lower().replace(' ', '_')}_vs_{y_axis_field.lower().replace(' ', '_')}_plot.png")
