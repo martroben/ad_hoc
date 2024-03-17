@@ -20,8 +20,8 @@ colour_field_eng_reference = {
     "not specified": "not specified",
     "põhi": "middle school",
     "kutse": "vocational",
-    "rakendus": "applied higher",
     "kesk": "high school",
+    "rakendus": "applied higher",
     "baka": "bachelors",
     "mag": "masters",
     "dok": "doctorate"}
