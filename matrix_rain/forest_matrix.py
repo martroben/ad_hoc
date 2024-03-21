@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+
 import random
 import time
 
@@ -38,19 +38,19 @@ class Cell:
             return AsciiTricks.blank_character
         
         active_character = self.subliminal_character or self.character
-        # And condition returns 0 iff position in drop is 0, i.e. first colour is used for head of the drop
+
+        # and operator returns 0 iff position in drop is 0, i.e. first colour in drop colours list is used only for head of the drop
         colour_position = self.position_in_drop and int(self.position_in_drop / len(Cell.DROP_TAIL_COLOURS256) // 1 + 1)
         colour256 = Cell.DROP_COLOURS256[colour_position]
         return AsciiTricks.set_colour(active_character, colour256)
 
-    def update_drop(self, set_drop_head: bool = False, drop_length: int = None) -> None:
+    def set_drop_head(self, drop_length: int) -> None:
+        self.position_in_drop = 0
+        self.drop_length = drop_length
+
+    def next_frame(self) -> None:
         if self.position_in_drop == -1:
             # Cell is not part of an active drop
-            return
-        if set_drop_head:
-            # Cell is set as drop head
-            self.position_in_drop = 0
-            self.drop_length = drop_length
             return
         if (new_position_in_drop := self.position_in_drop + 1) < self.drop_length:
             # Cell is part of drop tail
@@ -66,31 +66,52 @@ class Matrix:
         # use os.get_terminal_size() to determine
         self.n_rows = 56
         self.n_columns = 209
-        self.cells = []
 
         # Forestry related symbols, like 🯆 ㅆ 🜎  ⍦ ⍋ ⚘ ⚶ 𐡷 𐡸 ♣ 🙖
         forest_character_code_points = [985, 1126, 1993, 9035, 9062, 9753, 9872, 9880, 9906, 9910, 10047, 10048, 10086, 10087, 12614, 11439, 11801, 67703, 67704, 128598, 128782, 129990]
         self.available_characters = [chr(x) for x in forest_character_code_points]
 
+        # populate the matrix
+        self.rows = []
+        for _ in range(self.n_rows):
+            row = [Cell(character) for character in random.choices(self.available_characters, k=self.n_columns)]
+            self.rows.append(row)
+
         self.wait = 0.06
         self.glitch_freq = 0.01
         self.drop_freq = 0.1
 
-    def random_character_generator(self, n: int = 1) -> Iterator[str]:
-        for character in random.choices(self.available_characters, k=n):
-            yield character
-
-    def initial_fill(self) -> None:
-        for _ in range(self.n_rows):
-            row = [Cell(character) for character in self.random_character_generator(n=self.n_columns)]
-            self.cells.append(row)
-
     def __str__(self) -> str:
-        "".join(cell for cell in self.cells)
+        return "".join("".join(str(cell) for cell in row) for row in self.rows)
+    
+    def next_frame(self) -> None:
+#################################################################
+# __continue here__
+
+# Cycle through rows from bottom to top, 2 at a time (this & preceeding).
+# With first row just apply next_frame().
+# Spawn new drops in first row.
+
+        [[cell.next_frame() for cell in row] for row in self.rows]
+
+    def start(self) -> None:
+        self.rows[0][50].spawn_drop(10)
+        while True:
+            print(AsciiTricks.return_to_1_1(), end="")
+            print(self, end="", flush=True)
+            self.next_frame()
+            time.sleep(self.wait)
+
+
+matrix = Matrix()
+matrix.start()
+
+matrix.next_frame()
+matrix.rows[0][50].position_in_drop
+
 
 
 #################################################################
-# __continue here__
 
 # + MAX_LEN    # Add MAX_LEN rows so drops can nicely fall off the screen at the bottom
 
