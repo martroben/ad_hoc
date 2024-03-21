@@ -83,7 +83,7 @@ figure.update_layout(
     title=plot_title,
     xaxis=dict(
         title = x_axis_title,
-        range = [min(x_data)-100, x_cap + 100]),
+        range = [min(x_data) - 100, x_cap + 100]),
     yaxis_title=y_axis_title)
 
 # Show / save
