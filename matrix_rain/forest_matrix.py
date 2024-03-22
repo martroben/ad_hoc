@@ -2,6 +2,7 @@
 import random
 import time
 
+LOG = ""
 
 class AsciiTricks:
     escape = "\x1b"
@@ -62,12 +63,12 @@ class Cell:
 
 class Matrix:
     def __init__(self) -> None:
-        # 1920 x 1090 (full HD): 56 x 209
-        # use os.get_terminal_size() to determine
+        # 1920 x 1090 (full HD) is 56 rows x 209 columns
+        # use os.get_terminal_size() to determine the matrix dimensions
         self.n_rows = 56
         self.n_columns = 209
 
-        # Forestry related symbols, like 🯆 ㅆ 🜎  ⍦ ⍋ ⚘ ⚶ 𐡷 𐡸 ♣ 🙖
+        # Forestry related symbols, like ㅆ 🜎  ⍦ ⍋ ⚘ ⚶ 𐡷 𐡸 ♣ 🙖
         forest_character_code_points = [985, 1126, 1993, 9035, 9062, 9753, 9872, 9880, 9906, 9910, 10047, 10048, 10086, 10087, 12614, 11439, 11801, 67703, 67704, 128598, 128782, 129990]
         self.available_characters = [chr(x) for x in forest_character_code_points]
 
@@ -85,18 +86,28 @@ class Matrix:
         return "".join("".join(str(cell) for cell in row) for row in self.rows)
     
     def next_frame(self) -> None:
-#################################################################
-# __continue here__
+        # Iterate through rows starting from the bottom
+        for i, row in reversed(list(enumerate(self.rows[-1:]))):
+            # Iterate through cells in the row
+            for j, current_cell in enumerate(row):
+                # Advance frame of each cell
+                current_cell.next_frame()
+                # If cell one row above is drop head, set cell as drop head
+                if (cell_above := self.rows[i-1][j]).position_in_drop == 0:
+                    LOG += f"({i-1}, {j})"
+                    current_cell.set_drop_head(drop_length=cell_above.drop_length)
+        
+        # Advance frame for cells in first row
+        for first_row_cell in self.rows[0]:
+            first_row_cell.next_frame()
 
 # Cycle through rows from bottom to top, 2 at a time (this & preceeding).
 # With first row just apply next_frame().
 # Spawn new drops in first row.
 
-        [[cell.next_frame() for cell in row] for row in self.rows]
-
     def start(self) -> None:
-        self.rows[0][50].spawn_drop(10)
-        while True:
+        self.rows[0][50].set_drop_head(10)
+        for _ in range(1):
             print(AsciiTricks.return_to_1_1(), end="")
             print(self, end="", flush=True)
             self.next_frame()
