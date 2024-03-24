@@ -62,21 +62,47 @@ class Logo:
         return scaled_logo
 
 
+class Glitch:
+    pass
+
+
+# self.position_in_drop -> self.drop
+
+class Drop:
+    def __init__(self, length: int) -> None:
+        self.length = length
+        self.step = 1           # Parameter for possible extension: could make drops that move two cells in a cycle
+    
+    def get_colour(self, position_in_drop: int, bright_colour: int, lit_colours: list[int], dim_colours: list[int]) -> int:
+        if position_in_drop == 0:
+            return bright_colour
+        colour_sequence = lit_colours + dim_colours
+        # Selection formula prioritises colours in the tail end (rounds index up)
+        i_colour = int(((len(colour_sequence) - 1) * position_in_drop / self.length - 0.1) // 1 + 1)
+        return colour_sequence[i_colour]
+    
+    def get_next_position(self, position_in_drop: int) -> int:
+        next_position = position_in_drop + self.step
+        if next_position < self.length:
+            return next_position
+        return None
+
+
 class Cell:
     # Colour codes in 256 colour system
-    DROP_HEAD_COLOUR256 = 231               # white
-    DROP_BODY_COLOURS256 = [48, 41, 35]     # greens
-    DROP_TAIL_COLOUR256 = 238               # gray
+    CELL_BRIGHT_COLOUR = 231                # white
+    CELL_LIT_COLOURS = [48, 41, 35, 29]     # greens
+    CELL_TAIL_COLOURS = [238]               # darks and grays
 
     def __init__(self, character: str) -> None:
         self.character: str = character
         self.override_character: str = ""
 
         self.is_lit: bool = False
-        self.default_colour: int = random.choice(self.DROP_BODY_COLOURS256)
+        self.default_colour: int = random.choice(self.CELL_LIT_COLOURS)
 
-        self.position_in_drop: int = -1      # Position starting from drop head. 0-based indexing. -1 means no active drop
-        self.drop_length: int = -1
+        self.position_in_drop: int = 0      # Position starting from drop head. 0-based indexing.
+        self.drop: Drop = None
 
         self.is_logo = False
 
@@ -89,33 +115,30 @@ class Cell:
         return AsciiTricks.get_coloured_character(active_character, active_colour)
 
     def get_active_colour(self):
-        if self.position_in_drop == -1:
+        if not self.drop:
             return self.default_colour
-        if self.position_in_drop == 0:
-            return self.DROP_HEAD_COLOUR256
-        
-        colour_options = self.DROP_BODY_COLOURS256 + [self.DROP_TAIL_COLOUR256]
-        i_colour = int(((len(colour_options) - 1) * self.position_in_drop / self.drop_length - 0.1) // 1 + 1)
-        return colour_options[i_colour]
+        drop_colour = self.drop.get_colour(self.position_in_drop, self.CELL_BRIGHT_COLOUR, self.CELL_LIT_COLOURS, self.CELL_TAIL_COLOURS)
+        return drop_colour
 
     def get_active_character(self):
         return self.override_character or self.character
 
     def set_drop_head(self, drop_length: int) -> None:
         self.position_in_drop = 0
-        self.drop_length = drop_length
+        self.drop = Drop(drop_length)
         self.is_lit = True
 
     def move_drop(self, logo_active: bool) -> None:
-        if self.position_in_drop == -1:
+        if not self.drop:
             # Cell is not part of an active drop
             return
-        if (next_position := self.position_in_drop + 1) < self.drop_length:
+        if (next_position := self.drop.get_next_position(self.position_in_drop)) is not None:
             # Cell is part of drop body / tail
             self.position_in_drop = next_position
             return
         # Drop has passed the cell and it's set back to inactive stage
-        self.position_in_drop = self.drop_length = -1
+        self.drop = None
+        # Set cell as not lit, unless it's part of an active logo
         if not (logo_active and self.is_logo):
             self.is_lit = False
 
@@ -128,7 +151,7 @@ class Matrix:
 
     MIN_DROP_LENGTH: int = 4
     MAX_DROP_LENGTH: int = 12
-    DROP_DENSITY: float = 0.2      # Proportion of screen filled by drops
+    DROP_PROBABLITY: float = 0.02
 
     # Forestry related symbols: ϙ Ѧ ⍋ ⍦ ☙ ⚐ ⚘ ⚲ ⚶ ✿ ❀ ❦ ❧ ⲯ ⸙ 🙖 🜎 🯆
     CHARACTER_CODE_POINTS = [985, 1126, 9035, 9062, 9753, 9872, 9880, 9906, 9910, 10047, 10048, 10086, 10087, 11439, 11801, 128598, 128782, 129990]
@@ -144,7 +167,7 @@ class Matrix:
             self.rows.append(row)
         
         # Duplicated instance variable is set, because it changes when "stopping" the rain
-        self.active_drop_density = self.DROP_DENSITY
+        self.active_drop_probability = self.DROP_PROBABLITY
         self.rain_active = True
 
     def __str__(self) -> str:
@@ -176,20 +199,16 @@ class Matrix:
                 current_cell.move_drop(logo_active = self.logo_active)
                 # If cell one row above is drop head, set cell as drop head
                 cell_above = self.rows[i_row-1][i_column]
-                if cell_above.position_in_drop == 0:
-                    current_cell.set_drop_head(drop_length=cell_above.drop_length)
+                if cell_above.drop is not None and cell_above.position_in_drop == 0:
+                    current_cell.set_drop_head(drop_length=cell_above.drop.length)
         
         # Advance frame for cells in first row
         for first_row_cell in self.rows[0]:
             first_row_cell.move_drop(logo_active = self.logo_active)
 
     def spawn_new_drops(self) -> None:
-        ############################################################## Find a way to define it in init
-        mean_drop_length = (self.MIN_DROP_LENGTH + self.MAX_DROP_LENGTH) / 2
-        screen_fill_density = self.active_drop_density / mean_drop_length
-        # ^ drop density is divided by mean drop length to get a parameter characterising screen fill density
         for cell in self.rows[0]:
-            if random.random() > screen_fill_density:
+            if random.random() > self.active_drop_probability:
                 continue
 
             drop_length = random.randint(self.MIN_DROP_LENGTH, self.MAX_DROP_LENGTH)
@@ -200,13 +219,13 @@ class Matrix:
             return
         
         # Only initiate drops in currently lit non-drop cells
-        active_logo_top_cells = [cell for cell in self.logo_top_cells if cell.is_lit and cell.position_in_drop == -1]
+        active_logo_top_cells = [cell for cell in self.logo_top_cells if cell.is_lit and not cell.drop]
         
-        # Increase drop probablity as less cells remain (for better visual)
-        drop_probablity = Matrix.DROP_DENSITY + (1 - Matrix.DROP_DENSITY) * (len(self.logo_top_cells) - len(active_logo_top_cells)) / len(self.logo_top_cells)
+        # Increase drop probablity as less cells remain in logo (for better visual)
+        max_probablity = 0.1
+        drop_probablity = Matrix.DROP_PROBABLITY + (max_probablity - Matrix.DROP_PROBABLITY) * (len(self.logo_top_cells) - len(active_logo_top_cells)) / len(self.logo_top_cells)
         for cell in active_logo_top_cells:
-            ############################################################## Find a way to define it in init
-            if random.random() > drop_probablity / 8 / 2:
+            if random.random() > drop_probablity:
                 continue
 
             drop_length = random.randint(self.MIN_DROP_LENGTH, self.MAX_DROP_LENGTH)
@@ -244,7 +263,7 @@ class Matrix:
             
             if not self.rain_active:
                 # Stop rain within N_ROWS steps
-                self.active_drop_density = max(0, self.active_drop_density - self.DROP_DENSITY / self.N_ROWS)
+                self.active_drop_probability = max(0, self.active_drop_probability - self.DROP_PROBABLITY / self.N_ROWS)
 
 
 
