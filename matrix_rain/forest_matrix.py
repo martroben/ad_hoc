@@ -132,15 +132,14 @@ class Cell:
         if not self.drop:
             # Cell is not part of an active drop
             return
-        if (next_position := self.drop.get_next_position(self.position_in_drop)) is not None:
-            # Cell is part of drop body / tail
+        if next_position := self.drop.get_next_position(self.position_in_drop):
+            # If next_position is not none, the cell is part of drop body / tail
             self.position_in_drop = next_position
             return
-        # Drop has passed the cell and it's set back to inactive stage
+        # Else, drop has passed the cell and it's set back to inactive stage
         self.drop = None
         # Set cell as not lit, unless it's part of an active logo
-        if not (logo_active and self.is_logo):
-            self.is_lit = False
+        self.is_lit = logo_active and self.is_logo
 
 
 class Matrix:
@@ -199,7 +198,7 @@ class Matrix:
                 current_cell.move_drop(logo_active = self.logo_active)
                 # If cell one row above is drop head, set cell as drop head
                 cell_above = self.rows[i_row-1][i_column]
-                if cell_above.drop is not None and cell_above.position_in_drop == 0:
+                if cell_above.drop and cell_above.position_in_drop == 0:
                     current_cell.set_drop_head(drop_length=cell_above.drop.length)
         
         # Advance frame for cells in first row
