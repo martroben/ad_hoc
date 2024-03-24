@@ -1,5 +1,6 @@
 import random
 import time
+from typing import Callable
 
 
 #########################
@@ -28,7 +29,7 @@ class AsciiImage:
     NEWLINE_CHARACTER = "\n"
 
     def __init__(self, ascii_text: str) -> None:
-        self.text = ascii_text
+        self.text: str = ascii_text
 
     def get_binary(self) -> list[list[bool]]:
         """
@@ -64,8 +65,8 @@ class AsciiImage:
 
 class Drop:
     def __init__(self, length: int) -> None:
-        self.length = length
-        self.step = 1           # Parameter for possible extension: could make drops that move two cells in a cycle
+        self.length: int = length
+        self.step: int = 1           # Parameter for possible extension: could make drops that move two cells in a cycle
     
     def get_colour(self, position_in_drop: int, bright_colours: int, lit_colours: list[int], fading_colours: list[int]) -> int:
         if position_in_drop == 0:
@@ -84,11 +85,11 @@ class Drop:
 
 class Cell:
     # Colour codes in 256 colour system
-    BRIGHT_COLOURS = [231]             # whites
-    LIT_COLOURS = [48, 41, 35, 29]     # greens
-    DIM_COLOURS = [29, 22]             # dark greens
-    FADING_COLOURS = [238]             # grays
-    INIVISIBLE_COLOUR = -1             # black (color code 0 doesn't look good on screen, so we return a blank character instead)
+    BRIGHT_COLOURS: list[int] = [231]           # whites
+    LIT_COLOURS: list[int] = [48, 41, 35, 29]   # greens
+    DIM_COLOURS: list[int] = [29, 22]           # dark greens
+    FADING_COLOURS: list[int] = [238]           # grays
+    INIVISIBLE_COLOUR: int = -1                 # black (color code 0 doesn't look good on screen, so we return a blank character instead)
 
     def __init__(self, character: str) -> None:
         self.character: str = character
@@ -98,11 +99,11 @@ class Cell:
         self.default_colour: int = random.choice(self.LIT_COLOURS)
         self.override_colour: int = None
 
-        self.position_in_drop: int = 0      # Position starting from drop head. 0-based indexing.
+        self.position_in_drop: int = 0          # Position starting from drop head. 0-based indexing.
         self.drop: Drop = None
 
-        self.is_ascii_image = False         # Cell is part of a 2d ascii "image"
-        self.is_message = False             # Cell is part of a vertical text "message"
+        self.is_ascii_image: bool = False       # Cell is part of a 2d ascii "image"
+        self.is_message: bool = False           # Cell is part of a vertical text "message"
 
     def __str__(self) -> str:
         if self.is_lit:
@@ -146,8 +147,8 @@ class Cell:
 
 class Glitch:
     def __init__(self, cell: Cell) -> None:
-        self.cell = cell
-        self.action_queue = []
+        self.cell: Cell = cell
+        self.action_queue: list[Callable] = []
 
         # Don't glitch messages
         if cell.is_message:
@@ -253,12 +254,10 @@ class Matrix:
     MESSAGE_REPLACE_PROBABLITY: float = 0.001   # Probablity that an existing message is deleted and another one spawned per cycle
 
     # Forestry related symbols: ϙ Ѧ ⍋ ⍦ ☙ ⚐ ⚘ ⚲ ⚶ ✿ ❀ ❦ ❧ ⲯ ⸙ 🙖 🜎 🯆
-    CHARACTER_CODE_POINTS = [985, 1126, 9035, 9062, 9753, 9872, 9880, 9906, 9910, 10047, 10048, 10086, 10087, 11439, 11801, 128598, 128782, 129990]
-    AVAILABLE_CHARACTERS = [chr(x) for x in CHARACTER_CODE_POINTS]
+    CHARACTER_CODE_POINTS: list[int] = [985, 1126, 9035, 9062, 9753, 9872, 9880, 9906, 9910, 10047, 10048, 10086, 10087, 11439, 11801, 128598, 128782, 129990]
+    AVAILABLE_CHARACTERS: list[int] = [chr(x) for x in CHARACTER_CODE_POINTS]
 
-    FRAME_SLEEP_PERIOD_SECONDS = 0.06
-
-    LOG = ""
+    FRAME_SLEEP_PERIOD_SECONDS: float = 0.06
 
     def __init__(self) -> None:
         # List of rows consisting of cells
@@ -388,11 +387,11 @@ class Matrix:
 
     def run(self) -> None:
 
-        start_timestamp = time.time()
-        start_ascii_image_seconds = 20
-        stop_rain_seconds = 24
-        wash_ascii_image_seconds = 70
-        cycle_end_seconds = 80
+        start_timestamp: float = time.time()
+        start_ascii_image_seconds: int = 20
+        stop_rain_seconds: int = 24
+        wash_ascii_image_seconds: int = 70
+        cycle_end_seconds: int = 80
 
         while (time.time() - start_timestamp) < cycle_end_seconds:
             # Print current state and then advance the frame
