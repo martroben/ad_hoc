@@ -77,8 +77,9 @@ class Drop:
         
         # sequence of all colors
         colour_sequence = lit_colours + fading_colours
-        # Selection formula prioritises colours in the tail end (rounds index up)
-        i_colour = int(((len(colour_sequence) - 1) * position_in_drop / self.length - 0.1) // 1 + 1)
+        # If the brightness bias is close to 1, the drop colour is biased towards brighter colours. I.e. the colours towards the beginning og the sequence
+        brightness_bias: float = 0.7    # Values from 0 to 1
+        i_colour = int(((len(colour_sequence) - 1) * position_in_drop / self.length - brightness_bias) // 1 + 1)
         return colour_sequence[i_colour]
     
     def get_next_position(self, position_in_drop: int) -> int:
@@ -247,8 +248,8 @@ class Message:
 
 class Matrix:
     MIN_DROP_LENGTH: int = 4
-    MAX_DROP_LENGTH: int = 12
-    DROP_PROBABLITY: float = 0.02               # Drop probablity per column per step
+    MAX_DROP_LENGTH: int = 25
+    DROP_PROBABLITY: float = 0.01               # Drop probablity per column per step
     GLITCH_PROBABILITY: float = 0.0002          # Glitch probability per cell per step
     N_CONCURRENT_MESSAGES: int = 50             # Number of messages active at any time
     MESSAGE_REPLACE_PROBABLITY: float = 0.001   # Probablity that an existing message is deleted and another one spawned per cycle
@@ -257,7 +258,7 @@ class Matrix:
     CHARACTER_CODE_POINTS: list[int] = [985, 1126, 9035, 9062, 9753, 9872, 9880, 9906, 9910, 10047, 10048, 10086, 10087, 11439, 11801, 128598, 128782, 129990]
     AVAILABLE_CHARACTERS: list[int] = [chr(x) for x in CHARACTER_CODE_POINTS]
 
-    FRAME_SLEEP_PERIOD_SECONDS: float = 0.06
+    FRAME_SLEEP_PERIOD_SECONDS: float = 0.05
 
     def __init__(self, n_rows: int, n_columns: int) -> None:
         self.n_rows = n_rows
@@ -328,10 +329,20 @@ class Matrix:
         
         # Only initiate drops in currently lit non-drop cells
         image_top_cells_active = [cell for cell in self.image_top_cells if cell.is_lit and not cell.drop]
-        
-        # Increase drop probablity as less cells remain in image (for better visual)
-        max_probablity = 0.1
-        drop_probablity = Matrix.DROP_PROBABLITY + (max_probablity - Matrix.DROP_PROBABLITY) * (len(self.image_top_cells) - len(image_top_cells_active)) / len(self.image_top_cells)
+        if not image_top_cells_active:
+            return
+
+        # Increase drop probablity as less cells remain in the image (for better visual)
+        drop_probability_start: float = Matrix.DROP_PROBABLITY / 30
+        drop_probability_end: float = 0.05
+
+        n_message_columns_start = len(self.image_top_cells)
+        n_message_columns_remaining = len(image_top_cells_active)
+
+        # Increase the probability in cubic progression as less columns remain to get slow increase in the beginning and fast increase in the end
+        stop_function = lambda x: drop_probability_start + (drop_probability_end - drop_probability_start) * (1 - x / n_message_columns_start)**3
+        drop_probablity = stop_function(n_message_columns_remaining)
+
         for cell in image_top_cells_active:
             if random.random() > drop_probablity:
                 continue
@@ -391,9 +402,9 @@ class Matrix:
 
         start_timestamp: float = time.time()
         start_ascii_image_seconds: int = 20
-        stop_rain_seconds: int = 24
-        wash_ascii_image_seconds: int = 70
-        cycle_end_seconds: int = 80
+        stop_rain_seconds: int = 28
+        wash_ascii_image_seconds: int = 80
+        cycle_end_seconds: int = 110
 
         while (time.time() - start_timestamp) < cycle_end_seconds:
             # Print current state and then advance the frame
@@ -420,8 +431,11 @@ class Matrix:
                 self.spawn_ascii_image_washing_drops()
             
             if not self.rain_active:
-                # Reduce drop probability little by little to stop rain gradually
-                self.active_drop_probability = max(0, self.active_drop_probability - self.DROP_PROBABLITY / self.n_rows)
+                stop_transition_duration_seconds = 30
+                seconds_past_stop_command = time.time() - start_timestamp - stop_rain_seconds
+                # Reduce drop probability in cubic progression to stop rain gradually
+                stop_function = lambda x: self.DROP_PROBABLITY * abs(min(0, (x / stop_transition_duration_seconds - 1)**3))
+                self.active_drop_probability = stop_function(seconds_past_stop_command)
 
 
 #######
