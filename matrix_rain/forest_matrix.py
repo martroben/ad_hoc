@@ -339,7 +339,7 @@ class Matrix:
         n_message_columns_start = len(self.image_top_cells)
         n_message_columns_remaining = len(image_top_cells_active)
 
-        # Increase the probability in cubic progression as less columns remain to get slow increase in the beginning and fast increase in the end
+        # Increase wash drop probability in cubic progression as less columns remain for slow degradation in the beginning and fast end
         stop_function = lambda x: drop_probability_start + (drop_probability_end - drop_probability_start) * (1 - x / n_message_columns_start)**3
         drop_probablity = stop_function(n_message_columns_remaining)
 
