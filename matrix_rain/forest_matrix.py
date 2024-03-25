@@ -74,6 +74,8 @@ class Drop:
     def get_colour(self, position_in_drop: int, bright_colours: int, lit_colours: list[int], fading_colours: list[int]) -> int:
         if position_in_drop == 0:
             return random.choice(bright_colours)
+        
+        # sequence of all colors
         colour_sequence = lit_colours + fading_colours
         # Selection formula prioritises colours in the tail end (rounds index up)
         i_colour = int(((len(colour_sequence) - 1) * position_in_drop / self.length - 0.1) // 1 + 1)
@@ -139,7 +141,7 @@ class Cell:
             # Cell is not part of an active drop
             return
         if next_position := self.drop.get_next_position(self.position_in_drop):
-            # If next_position is not none, the cell is part of drop body / tail
+            # If next_position is not None, the cell is part of drop body / tail
             self.position_in_drop = next_position
             return
         # Else, drop has passed the cell and it's set back to inactive stage
@@ -255,7 +257,7 @@ class Matrix:
     CHARACTER_CODE_POINTS: list[int] = [985, 1126, 9035, 9062, 9753, 9872, 9880, 9906, 9910, 10047, 10048, 10086, 10087, 11439, 11801, 128598, 128782, 129990]
     AVAILABLE_CHARACTERS: list[int] = [chr(x) for x in CHARACTER_CODE_POINTS]
 
-    FRAME_SLEEP_PERIOD_SECONDS: float = 0.09
+    FRAME_SLEEP_PERIOD_SECONDS: float = 0.06
 
     def __init__(self, n_rows: int, n_columns: int) -> None:
         self.n_rows = n_rows
@@ -298,13 +300,13 @@ class Matrix:
 
     def move_drops(self) -> None:
         # Iterate through rows starting from the bottom
-        for i_row, row in reversed(list(enumerate(self.rows[1:]))):
+        for i_row_above, row in reversed(list(enumerate(self.rows[1:]))):
             # Iterate through cells in the row
             for i_column, current_cell in enumerate(row):
                 # Advance frame of each cell
                 current_cell.move_drop(image_active = self.ascii_image_active)
                 # If cell one row above is drop head, set cell as drop head
-                cell_above = self.rows[i_row-1][i_column]
+                cell_above = self.rows[i_row_above][i_column]
                 if cell_above.drop and cell_above.position_in_drop == 0:
                     current_cell.set_drop_head(drop_length=cell_above.drop.length)
         
