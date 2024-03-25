@@ -1,3 +1,4 @@
+import os
 import random
 import time
 from typing import Callable
@@ -50,7 +51,9 @@ class AsciiImage:
         n_columns_image = len(binary[0])
 
         if n_rows_image > n_rows or n_columns_image > n_columns:
-            raise ValueError("Scaling dimensions are smaller than the input image. Function can only scale the number of rows and columns up, not down.")
+            # raise ValueError("Scaling dimensions are smaller than the input image. Function can only scale the number of rows and columns up, not down.")
+            # Return just an empty result instead of raising an error
+            return [[]]
 
         n_pad_rows_top = (n_rows - n_rows_image) // 2
         n_pad_rows_bottom = n_rows - n_pad_rows_top - n_rows_image
@@ -241,11 +244,6 @@ class Message:
 
 
 class Matrix:
-    # 1920 x 1090 (full HD): 56 rows x 209 columns
-    # use python3 -c import os; os.get_terminal_size() in full screen terminal to get matrix dimensions
-    N_ROWS: int = 56
-    N_COLUMNS: int = 209
-
     MIN_DROP_LENGTH: int = 4
     MAX_DROP_LENGTH: int = 12
     DROP_PROBABLITY: float = 0.02               # Drop probablity per column per step
@@ -257,14 +255,16 @@ class Matrix:
     CHARACTER_CODE_POINTS: list[int] = [985, 1126, 9035, 9062, 9753, 9872, 9880, 9906, 9910, 10047, 10048, 10086, 10087, 11439, 11801, 128598, 128782, 129990]
     AVAILABLE_CHARACTERS: list[int] = [chr(x) for x in CHARACTER_CODE_POINTS]
 
-    FRAME_SLEEP_PERIOD_SECONDS: float = 0.06
+    FRAME_SLEEP_PERIOD_SECONDS: float = 0.09
 
-    def __init__(self) -> None:
+    def __init__(self, n_rows: int, n_columns: int) -> None:
+        self.n_rows = n_rows
+        self.n_columns = n_columns
         # List of rows consisting of cells
         self.rows: list[list[Cell]] = []
         # Populate the matrix
-        for _ in range(self.N_ROWS):
-            row = [Cell(character) for character in random.choices(self.AVAILABLE_CHARACTERS, k=self.N_COLUMNS)]
+        for _ in range(self.n_rows):
+            row = [Cell(character) for character in random.choices(self.AVAILABLE_CHARACTERS, k=self.n_columns)]
             self.rows.append(row)
         
         # Duplicated instance variable is set, because it changes when "stopping" the rain
@@ -280,7 +280,7 @@ class Matrix:
         return "".join("".join(str(cell) for cell in row) for row in self.rows)
     
     def set_ascii_image(self, ascii_image: AsciiImage) -> None:
-        ascii_image_matrix = ascii_image.get_scaled_matrix(self.N_ROWS, self.N_COLUMNS)
+        ascii_image_matrix = ascii_image.get_scaled_matrix(self.n_rows, self.n_columns)
         for i_row, image_row in enumerate(ascii_image_matrix):
             for i_column, is_ascii_image in enumerate(image_row):
                 self.rows[i_row][i_column].is_ascii_image = is_ascii_image
@@ -295,7 +295,7 @@ class Matrix:
                     continue
 
         self.ascii_image_active = False
-    
+
     def move_drops(self) -> None:
         # Iterate through rows starting from the bottom
         for i_row, row in reversed(list(enumerate(self.rows[1:]))):
@@ -355,16 +355,16 @@ class Matrix:
     def spawn_message(self) -> None:
         if len(self.messages) >= self.N_CONCURRENT_MESSAGES:
             return
-        message_text = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        message_text = "12345678901234567890123456789012345678901234567890"
         # Select a column that does not already have a message
         used_columns = [i_column for _, i_column in self.messages]
-        available_columns = [i for i in range(self.N_COLUMNS) if i not in used_columns]
+        available_columns = [i for i in range(self.n_columns) if i not in used_columns]
         self.LOG = available_columns
         i_column = random.choice(available_columns)
         # Select a row such that the message would fit the column
-        if len(message_text) > self.N_ROWS:
+        if len(message_text) > self.n_rows:
             return
-        i_start_row = random.choice(range(self.N_ROWS - len(message_text)))
+        i_start_row = random.choice(range(self.n_rows - len(message_text)))
         message_cells = [self.rows[i_row][i_column] for i_row in range(i_start_row, i_start_row + len(message_text))]
         message = Message([(cell, character) for cell, character in zip(message_cells, message_text)])
         self.messages += [(message, i_column)]
@@ -419,7 +419,7 @@ class Matrix:
             
             if not self.rain_active:
                 # Reduce drop probability little by little to stop rain gradually
-                self.active_drop_probability = max(0, self.active_drop_probability - self.DROP_PROBABLITY / self.N_ROWS)
+                self.active_drop_probability = max(0, self.active_drop_probability - self.DROP_PROBABLITY / self.n_rows)
 
 
 #######
@@ -427,7 +427,10 @@ class Matrix:
 #######
 
 while True:
-    matrix = Matrix()
+    # 1920 x 1080 (full HD): 56 rows x 209 columns
+    # use python3 -c "import os; print(os.get_terminal_size())" in full screen terminal to get matrix dimensions
+    n_columns, n_rows = os.get_terminal_size()
+    matrix = Matrix(n_rows, n_columns)
 
     # Ascii image generated by https://seotoolbelt.co/tools/ascii-art-generator/#text-list-tab
     with open("ascii_logo.txt") as logo_file:
